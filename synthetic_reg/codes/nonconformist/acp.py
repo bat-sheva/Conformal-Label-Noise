@@ -4,7 +4,6 @@
 Aggregated conformal predictors
 """
 
-# Authors: Henrik Linusson
 
 import numpy as np
 from sklearn.cross_validation import KFold, StratifiedKFold

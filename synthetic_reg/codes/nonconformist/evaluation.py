@@ -4,7 +4,6 @@
 Evaluation of conformal predictors.
 """
 
-# Authors: Henrik Linusson
 
 # TODO: cross_val_score/run_experiment should possibly allow multiple to be evaluated on identical folding
 

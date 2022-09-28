@@ -4,9 +4,6 @@
 Nonconformity functions.
 """
 
-# Authors: Henrik Linusson
-# Yaniv Romano modified RegressorNc class to include CQR
-
 from __future__ import division
 
 import abc
@@ -291,27 +288,12 @@ class RegressorNormalizer(BaseScorer):
 		residual_prediction = self.base_model.predict(x)
 		residual_error = np.abs(self.err_func.apply(residual_prediction, y))
 
-		######################################################################
-		# Optional: use logarithmic function as in the original implementation
-		# available in https://github.com/donlnz/nonconformist
-		#
-		# CODE:
-		# residual_error += 0.00001 # Add small term to avoid log(0)
-		# log_err = np.log(residual_error)
-		######################################################################
 
 		log_err = residual_error
 		self.normalizer_model.fit(x, log_err)
 
 	def score(self, x, y=None):
 
-		######################################################################
-		# Optional: use logarithmic function as in the original implementation
-		# available in https://github.com/donlnz/nonconformist
-		#
-		# CODE:
-		# norm = np.exp(self.normalizer_model.predict(x))
-		######################################################################
 
 		norm = np.abs(self.normalizer_model.predict(x))
 		return norm

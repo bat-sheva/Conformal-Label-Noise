@@ -4,8 +4,6 @@
 docstring
 """
 
-# Authors: Henrik Linusson
-
 import abc
 import numpy as np
 

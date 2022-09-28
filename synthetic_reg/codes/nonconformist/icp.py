@@ -4,7 +4,6 @@
 Inductive conformal predictors.
 """
 
-# Authors: Henrik Linusson
 
 from __future__ import division
 from collections import defaultdict
