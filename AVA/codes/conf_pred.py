@@ -30,7 +30,6 @@ class CQR:
     err_low = np.reshape(error_low, (y_lower.shape[0],1))
 
     E = np.maximum(err_high, err_low)
-    E = E + 1e-10*np.random.randn(E.size)
 
     n2 = len(calib_loader.dataset)
 
@@ -54,7 +53,6 @@ class CQR:
 
     Q = self.Q
     C = np.asarray([y_lower-Q, y_upper+Q]).T
-    print(C.shape)
     return C    
 
 
@@ -73,7 +71,6 @@ class ResCalib:
     n2 = len(calib_loader.dataset)
     residuals = np.abs(true_Y.squeeze(1) - torch.tensor(pred_mean).cpu().numpy())
     print(residuals.size)
-    residuals = residuals + 1e-10*np.random.randn(residuals.size)
     level_adjusted = (1.0-alpha)*(1.0+1.0/float(n2))
     Q = mquantiles(residuals, prob=level_adjusted)[0]
       

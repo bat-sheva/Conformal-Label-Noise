@@ -25,62 +25,6 @@ def class_probability_score(probabilities, labels, all_combinations=False):
     return scores
     
     
-#class ProbAccum:
-#    def __init__(self, prob):
-#        prob = np.clip(prob,1e-6,1.0-2e-6)
-#        prob += np.random.uniform(low=0.0, high=1e-6, size=prob.shape)
-#        prob /= np.sum(prob,1)[:,None]
-#        self.prob = prob
-#        self.n, self.K = prob.shape
-#        self.order = np.argsort(-prob, axis=1)
-#        self.ranks = np.empty_like(self.order)
-#        for i in range(self.n):
-#            self.ranks[i, self.order[i]] = np.arange(len(self.order[i]))
-#        self.prob_sort = -np.sort(-prob, axis=1)
-#        #self.epsilon = np.random.uniform(low=0.0, high=1.0, size=self.n)
-#        self.Z = np.round(self.prob_sort.cumsum(axis=1),9)        
-#        
-#    def predict_sets(self, alpha, randomize=False, epsilon=None):
-#        L = np.argmax(self.Z >= 1.0-alpha, axis=1).flatten()
-#        idx_ra0 = np.where(L==0)[0]
-#        if randomize:
-#            epsilon = np.random.uniform(low=0.0, high=1.0, size=self.n)
-#        if epsilon is not None:
-#            epsilon[idx_ra0] = 1
-#            Z_excess = np.array([ self.Z[i, L[i]] for i in range(self.n) ]) - (1.0-alpha)
-#            p_remove = Z_excess / np.array([ self.prob_sort[i, L[i]] for i in range(self.n) ])
-#            p_remove = np.clip(p_remove, 0, 1)
-#            remove = np.where(epsilon < p_remove)[0]
-#            L[remove] -= 1
-#            # Make sure no prediction sets are empty
-#            L[L<0] = 0
-#        # Return prediction set
-#        S = [ self.order[i,np.arange(0, L[i]+1)] for i in range(self.n) ]
-#        return(S)
-#
-#    def calibrate_scores(self, Y, epsilon=None, scores='RAPS'):
-#        Y = np.atleast_1d(Y)
-#        n2 = len(Y)
-#        if scores=='RAPS':
-#          ranks = np.array([ self.ranks[i,Y[i]] for i in range(n2) ])
-#          prob_cum = np.array([ self.Z[i,ranks[i]] for i in range(n2) ])
-#          prob = np.array([ self.prob_sort[i,ranks[i]] for i in range(n2) ])
-#          alpha_max = 1.0 - prob_cum
-#          
-#          if epsilon is not None:
-#            # This will give exact marginal coverage
-#            idx_ra0 = np.where(ranks==0)[0]
-#            epsilon[idx_ra0] = 1
-#            
-#            alpha_max += np.multiply(prob, epsilon)
-#          else:
-#              alpha_max += prob
-#  
-#          alpha_max = np.minimum(alpha_max, 1)
-#          return alpha_max
-#  
-#        if scores=='HPS':
-#          return class_probability_score(self.prob, Y, all_combinations=False)
 
 
 class ProbAccum:
@@ -177,46 +121,7 @@ class SplitConformal:
     S_hat = grey_box.predict_sets(alpha, epsilon=epsilon)
     return S_hat
 
-
-#class SplitConformal:
-#    def __init__(self, X, Y, black_box, alpha, random_state=2020, allow_empty=True, verbose=False):
-#        self.allow_empty = allow_empty
-#
-#        # Split data into training/calibration sets
-#        X_train, X_calib, Y_train, Y_calib = train_test_split(X, Y, test_size=0.5, random_state=random_state)
-#        n2 = X_calib.shape[0]
-#
-#        self.black_box = black_box
-#
-#        # Fit model
-#        self.black_box.fit(X_train, Y_train)
-#
-#        # Form prediction sets on calibration data
-#        p_hat_calib = self.black_box.predict_proba(X_calib)
-#        grey_box = ProbAccum(p_hat_calib)
-#
-#        rng = np.random.default_rng(random_state)
-#        epsilon = rng.uniform(low=0.0, high=1.0, size=n2)
-#        alpha_max = grey_box.calibrate_scores(Y_calib, epsilon=epsilon)
-#        scores = alpha - alpha_max
-#        level_adjusted = (1.0-alpha)*(1.0+1.0/float(n2))
-#        alpha_correction = mquantiles(scores, prob=level_adjusted)
-#
-#        # Store calibrate level
-#        self.alpha_calibrated = alpha - alpha_correction
-#
-#    def predict(self, X, random_state=2020):
-#        n = X.shape[0]
-#        rng = np.random.default_rng(random_state)
-#        epsilon = rng.uniform(low=0.0, high=1.0, size=n)
-#        p_hat = self.black_box.predict_proba(X)
-#        grey_box = ProbAccum(p_hat)
-#        S_hat = grey_box.predict_sets(self.alpha_calibrated, epsilon=epsilon, allow_empty=self.allow_empty)
-#        return S_hat
         
-        
-
-
 
 def evaluate_predictions(S, y, noisy=False, clean=False):
   # Marginal coverage
@@ -228,18 +133,7 @@ def evaluate_predictions(S, y, noisy=False, clean=False):
   idx_cover = np.where([y[i] in S[i] for i in range(len(y))])[0]
   size_cover = np.mean([len(S[i]) for i in idx_cover])
   # Combine results
-  if noisy:
-    out = pd.DataFrame({'Coverage_noisy': [marg_coverage],
-                        'Size_noisy': [size], 'Size_noisy (median)': [size_median], 
-                        'Size_noisy conditional on cover': [size_cover]})
-                        
-  elif clean:
-    out = pd.DataFrame({'Coverage_clean': [marg_coverage],
-                        'Size_clean': [size], 'Size_clean (median)': [size_median], 
-                        'Size_clean conditional on cover': [size_cover]})
-  
-  else:
-    out = pd.DataFrame({'Coverage': [marg_coverage],
-                        'Size': [size], 'Size (median)': [size_median], 
-                        'Size conditional on cover': [size_cover]})
+  out = pd.DataFrame({'Coverage': [marg_coverage],
+                      'Size': [size], 'Size (median)': [size_median], 
+                      'Size conditional on cover': [size_cover]})
   return out

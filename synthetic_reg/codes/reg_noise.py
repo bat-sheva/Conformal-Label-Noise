@@ -3,7 +3,7 @@
 import torch
 import numpy as np
 
-def add_Y_noise_gaussian(Y, probability=1.0, sigma=0.1, positive=False, gaussian=False, gumbel=False):
+def add_Y_noise_additive(Y, probability=1.0, sigma=0.1, positive=False, gaussian=False, gumbel=False):
     u = np.random.uniform(0,1,(len(Y),))
     indices_to_change = np.where(u <= probability)[0]
     Y_noisy = Y.copy()
@@ -31,7 +31,7 @@ def add_Y_noise_gaussian(Y, probability=1.0, sigma=0.1, positive=False, gaussian
     return Y_noisy
     
     
-def add_Y_noise_mean(Y, probability=1.0, contractive=True):
+def add_Y_noise_dependant(Y, probability=1.0, contractive=True):
     u = np.random.uniform(0,1,(len(Y),))
     indices_to_change = np.where(u <= probability)[0]
     Y_mean = np.mean(Y)

@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 sys.path.append('./codes/')
 
 from split_conf import SplitConformal, evaluate_predictions
-from black_boxes_CNN import BlackBox, ClassifierDataset, eval_predictions, predict, predict_proba
+from black_boxes_CNN import ClassifierDataset, eval_predictions, predict
 from cifar10_models.resnet import resnet18
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
@@ -29,36 +29,19 @@ def experiment(seed):
         torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
     
-    noise_tr = False
         
     files_dir = './saved_models_cifar10' 
     if not os.path.exists(files_dir):
         os.mkdir(files_dir)
 
-    if noise_tr:
-
-      
-      augmentation = [
-  #            transforms.RandomCrop(32, 4),
-  #            transforms.RandomHorizontalFlip(),
-              transforms.ToTensor(),
-              transforms.Normalize(mean = [0.4914, 0.4822, 0.4465],
-                                   std = [0.2471, 0.2435, 0.2616])
-  #            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-  #                                     std=[0.229, 0.224, 0.225])
-          ]
-
-    else:
     
-      augmentation = [
-  #            transforms.RandomCrop(32, 4),
-  #            transforms.RandomHorizontalFlip(),
-              transforms.ToTensor(),
-              transforms.Normalize(mean = [0.4914, 0.4822, 0.4465],
-                                   std = [0.2471, 0.2435, 0.2616])
-  #            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-  #                                     std=[0.229, 0.224, 0.225])
-          ]
+    augmentation = [
+
+            transforms.ToTensor(),
+            transforms.Normalize(mean = [0.4914, 0.4822, 0.4465],
+                                 std = [0.2471, 0.2435, 0.2616])
+
+        ]
     transform = transforms.Compose(augmentation)
     
     test_dataset_tmp = torchvision.datasets.CIFAR10(root='./cifar_10', train=False, download=False, transform=transform)
@@ -78,41 +61,22 @@ def experiment(seed):
     clean_y = np.asarray(cifar10h_unique.iloc[:,5]).astype(int)
     noisy_clean_y = np.concatenate((np.expand_dims(noisy_y,1),np.expand_dims(clean_y,1)),axis=1)
     
-    
-    
-    
-    if noise_tr:    
-    
-      X_train_tmp, X_test, Y_train_noisy_clean_tmp, Y_test_noisy_clean = train_test_split(test_images_array, noisy_clean_y, test_size=0.2, random_state=seed) 
-      Y_test_noisy = Y_test_noisy_clean[:,0]
-      Y_test_clean = Y_test_noisy_clean[:,1]
-      Y_train_noisy_tmp = Y_train_noisy_clean_tmp[:,0]
-   
-      X_train, X_calib, Y_train_noisy, Y_calib_noisy = train_test_split(X_train_tmp, Y_train_noisy_tmp, test_size=0.2, random_state=seed)
-      
-      
-      train_dataset = ClassifierDataset(X_train, torch.from_numpy(Y_train_noisy).long())
-      train_loader = DataLoader(train_dataset, batch_size=128, 
-                                shuffle=True, drop_last=True)
-                              
-                              
-                              
-    else:                         
+                            
 
-      X_calib, X_test, Y_calib_noisy_clean, Y_test_noisy_clean = train_test_split(test_images_array, noisy_clean_y, test_size=0.8, random_state=seed) 
-      Y_test_noisy = Y_test_noisy_clean[:,0]
-      Y_test_clean = Y_test_noisy_clean[:,1]
-      Y_calib_noisy = Y_calib_noisy_clean[:,0]
-      Y_calib_clean = Y_calib_noisy_clean[:,1]
+    X_calib, X_test, Y_calib_noisy_clean, Y_test_noisy_clean = train_test_split(test_images_array, noisy_clean_y, test_size=0.8, random_state=seed) 
+    Y_test_noisy = Y_test_noisy_clean[:,0]
+    Y_test_clean = Y_test_noisy_clean[:,1]
+    Y_calib_noisy = Y_calib_noisy_clean[:,0]
+    Y_calib_clean = Y_calib_noisy_clean[:,1]
                               
-    calib_dataset = ClassifierDataset(X_calib, torch.from_numpy(Y_calib_noisy).long())
-    calib_loader = DataLoader(calib_dataset, batch_size=1, 
+    calib_dataset_noisy = ClassifierDataset(X_calib, torch.from_numpy(Y_calib_noisy).long())
+    calib_loader_noisy = DataLoader(calib_dataset_noisy, batch_size=1, 
                               shuffle=False)
                               
-    if noise_tr==False:
-      calib_dataset_clean = ClassifierDataset(X_calib, torch.from_numpy(Y_calib_clean).long())
-      calib_loader_clean = DataLoader(calib_dataset_clean, batch_size=1, 
-                                      shuffle=False)
+    
+    calib_dataset_clean = ClassifierDataset(X_calib, torch.from_numpy(Y_calib_clean).long())
+    calib_loader_clean = DataLoader(calib_dataset_clean, batch_size=1, 
+                                    shuffle=False)
                               
     test_noisy_dataset = ClassifierDataset(X_test, torch.from_numpy(Y_test_noisy).long())
     test_noisy_loader = DataLoader(test_noisy_dataset, batch_size=1, 
@@ -126,74 +90,31 @@ def experiment(seed):
     out_prefix =  'seed_%a' %seed
 
     
-    # Train model with CE loss
-    
-    if noise_tr:  
-    
-      #bbox = models.resnet18(pretrained=True)
-           
-      file_final = files_dir+'/'+'saved_model_' + out_prefix
-        
-      if os.path.isfile(file_final):
-          print('Loading model instead of training')
-          bbox = BlackBox(num_features=3, 
-                                          num_classes=10)
-          saved_stats = torch.load(file_final, map_location=device)
-          bbox.model.load_state_dict(saved_stats['model_state'])
-          stats_bbox = saved_stats['stats']
-  
-      else:
-          bbox = BlackBox(num_features=3, 
-                                  num_classes=10)
-          stats_bbox = bbox.fit(train_loader = train_loader, 
-                                  num_epochs = 500, 
-                                  optimizer = 'SGD',
-                                  lr = 0.1,
-                                  save_model = True,
-                                  lr_sch = True,
-                                  name = file_final,
-                                  verbose=True)
-                                  
-    else:
+
                   
-      bbox = resnet18(pretrained=True)
+    bbox = resnet18(pretrained=True)
     
     alpha = 0.1
 
     sc_method = SplitConformal()
-    sc_method.calibrate(calib_loader, alpha, bbox, noise_tr=noise_tr)
-
-    
-    sets_noisy = sc_method.predict(test_noisy_loader)
-    if noise_tr:
-      _, y_noisy_true = bbox.predict(test_noisy_loader, return_y_true = True)
-    else:
-      _, y_noisy_true = predict(bbox, test_noisy_loader, return_y_true = True)
-    res_noisy = evaluate_predictions(sets_noisy, y_noisy_true, noisy=True)
-    res_noisy['Acc_noisy'] = eval_predictions(test_noisy_loader, bbox, data="test", plot=False, printing=False, noise_tr=noise_tr)
-    
+    sc_method.calibrate(calib_loader_noisy, alpha, bbox)
     sets_clean = sc_method.predict(test_clean_loader)
-    if noise_tr:
-      _, y_clean_true = bbox.predict(test_clean_loader, return_y_true = True)
-    else:
-      _, y_clean_true = predict(bbox, test_clean_loader, return_y_true = True)
-    res_clean = evaluate_predictions(sets_clean, y_clean_true, clean=True)
-    res_clean['Acc_clean'] = eval_predictions(test_clean_loader, bbox, data="test", plot=False, printing=False, noise_tr=noise_tr)
-    
-    if noise_tr:
-      results = pd.concat([res_noisy, res_clean], axis=1, join="inner")
-    
-    else:   
-      sc_method_calib_clean = SplitConformal()
-      sc_method_calib_clean.calibrate(calib_loader_clean, alpha, bbox)
-      sets_calib_clean = sc_method_calib_clean.predict(test_clean_loader)
-      _, y_clean_true = predict(bbox, test_clean_loader, return_y_true = True)
-      res_calib_clean = evaluate_predictions(sets_calib_clean, y_clean_true)
-      res_calib_clean['Acc'] = eval_predictions(test_clean_loader, bbox, data="test", plot=False, printing=False)
+    _, y_clean_true = predict(bbox, test_clean_loader, return_y_true = True)
+    res = evaluate_predictions(sets_clean, y_clean_true)
+    res['Acc'] = eval_predictions(test_clean_loader, bbox, data="test", plot=False, printing=False)
+    res['Calib'] = 'noisy'
+    res['Method'] = 'APS'
+   
+    sc_method_calib_clean = SplitConformal()
+    sc_method_calib_clean.calibrate(calib_loader_clean, alpha, bbox)
+    sets_calib_clean = sc_method_calib_clean.predict(test_clean_loader)
+    _, y_clean_true = predict(bbox, test_clean_loader, return_y_true = True)
+    res_calib_clean = evaluate_predictions(sets_calib_clean, y_clean_true)
+    res_calib_clean['Acc'] = eval_predictions(test_clean_loader, bbox, data="test", plot=False, printing=False)
+    res_calib_clean['Calib'] = 'clean'
+    res_calib_clean['Method'] = 'APS'
   
-      results = pd.concat([res_noisy, res_clean, res_calib_clean], axis=1, join="inner")
-    
-#    
+    results = pd.concat([res, res_calib_clean], axis=0, join="inner")
         
     results = results.reset_index()
     return results
@@ -208,7 +129,7 @@ if __name__ == '__main__':
   # Parameters
   seed = int(sys.argv[1])
   # Output directory and filename
-  out_dir = "./results_cifar10"
+  out_dir = "./results_cifar10_final"
   out_file = out_dir + "_seed_" + str(seed) + ".csv"
 
   # Run experiment

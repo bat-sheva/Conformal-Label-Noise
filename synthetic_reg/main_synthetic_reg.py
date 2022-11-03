@@ -5,17 +5,12 @@ import random
 import pandas as pd
 import numpy as np
 
-#from cqr import helper
-#from nonconformist.nc import RegressorNc
-#from nonconformist.cp import IcpRegressor
-#from nonconformist.nc import QuantileRegErrFunc
-
 sys.path.append('./codes/')
 
 from cqr import helper
 from CQR import CQR_rf
 from Data_Generation_Model import f
-from reg_noise import add_Y_noise_gaussian, add_Y_noise_mean
+from reg_noise import add_Y_noise_additive, add_Y_noise_dependant
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -57,31 +52,31 @@ def experiment(seed, sigma):
     y_calib = f(x_calib)
     
     # add gaussian noise
-    y_train_noisy_gaussian = add_Y_noise_gaussian(y_train, sigma=sigma, gaussian=True)
-    y_calib_noisy_gaussian = add_Y_noise_gaussian(y_calib, sigma=sigma, gaussian=True)
-    y_test_noisy_gaussian = add_Y_noise_gaussian(y_test, sigma=sigma, gaussian=True)
+    y_train_noisy_gaussian = add_Y_noise_additive(y_train, sigma=sigma, gaussian=True)
+    y_calib_noisy_gaussian = add_Y_noise_additive(y_calib, sigma=sigma, gaussian=True)
+    y_test_noisy_gaussian = add_Y_noise_additive(y_test, sigma=sigma, gaussian=True)
     
-    y_train_noisy_t = add_Y_noise_gaussian(y_train, sigma=sigma)
-    y_calib_noisy_t = add_Y_noise_gaussian(y_calib, sigma=sigma)
-    y_test_noisy_t = add_Y_noise_gaussian(y_test, sigma=sigma)
+    y_train_noisy_t = add_Y_noise_additive(y_train, sigma=sigma)
+    y_calib_noisy_t = add_Y_noise_additive(y_calib, sigma=sigma)
+    y_test_noisy_t = add_Y_noise_additive(y_test, sigma=sigma)
     
-    y_train_noisy_gumbel = add_Y_noise_gaussian(y_train, sigma=sigma, gumbel=True)
-    y_calib_noisy_gumbel = add_Y_noise_gaussian(y_calib, sigma=sigma, gumbel=True)
-    y_test_noisy_gumbel = add_Y_noise_gaussian(y_test, sigma=sigma, gumbel=True)
+    y_train_noisy_gumbel = add_Y_noise_additive(y_train, sigma=sigma, gumbel=True)
+    y_calib_noisy_gumbel = add_Y_noise_additive(y_calib, sigma=sigma, gumbel=True)
+    y_test_noisy_gumbel = add_Y_noise_additive(y_test, sigma=sigma, gumbel=True)
     
-    y_train_noisy_positive = add_Y_noise_gaussian(y_train, positive=True, sigma=sigma)
-    y_calib_noisy_positive = add_Y_noise_gaussian(y_calib, positive=True, sigma=sigma)
-    y_test_noisy_positive = add_Y_noise_gaussian(y_test, positive=True, sigma=sigma)
-    
-    
-    y_train_noisy_mean = add_Y_noise_mean(y_train)
-    y_calib_noisy_mean = add_Y_noise_mean(y_calib)
-    y_test_noisy_mean = add_Y_noise_mean(y_test)
+    y_train_noisy_positive = add_Y_noise_additive(y_train, positive=True, sigma=sigma)
+    y_calib_noisy_positive = add_Y_noise_additive(y_calib, positive=True, sigma=sigma)
+    y_test_noisy_positive = add_Y_noise_additive(y_test, positive=True, sigma=sigma)
     
     
-    y_train_noisy_dispersive = add_Y_noise_mean(y_train, contractive=False)
-    y_calib_noisy_dispersive = add_Y_noise_mean(y_calib, contractive=False)
-    y_test_noisy_dispersive = add_Y_noise_mean(y_test, contractive=False)
+    y_train_noisy_contractive = add_Y_noise_dependant(y_train)
+    y_calib_noisy_contractive = add_Y_noise_dependant(y_calib)
+    y_test_noisy_contractive = add_Y_noise_dependant(y_test)
+    
+    
+    y_train_noisy_dispersive = add_Y_noise_dependant(y_train, contractive=False)
+    y_calib_noisy_dispersive = add_Y_noise_dependant(y_calib, contractive=False)
+    y_test_noisy_dispersive = add_Y_noise_dependant(y_test, contractive=False)
     
     # reshape the features
     x_train = np.reshape(x_train,(n_train,n_features))
@@ -103,6 +98,14 @@ def experiment(seed, sigma):
     params_qforest["random_state"] = seed
     params_qforest["range_vals"] = 10
     params_qforest["num_vals"] = 4
+    
+    Noise_type_train = np.expand_dims(['clean', 'clean', 'clean', 'clean', 'clean', 'clean', 'clean', 'clean', 't', 'gaussian', 'gumbel', 'positive', 'contractive', 'contractive', 'dispersive', 'dispersive'],1)
+    Noise_type_calib = np.expand_dims(['t', 'gaussian', 'gumbel', 'positive', 'contractive', 'dispersive', 'wrong_to_right', 'clean', 't', 'gaussian', 'gumbel', 'positive', 'contractive', 'clean', 'dispersive', 'clean'],1)
+    coverage = np.zeros((len(Noise_type_train),1))
+    seed = np.ones((len(Noise_type_train),1))*seed
+    sigma = np.ones((len(Noise_type_train),1))*sigma
+    length = np.zeros((len(Noise_type_train),1))
+    
     
 ##################### train clean    
     
@@ -127,10 +130,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_t = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[0] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_t = np.mean(y_upper - y_lower)
+    length[0] = np.mean(y_upper - y_lower)
     
     
     
@@ -146,10 +149,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_gaussian = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[1] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_gaussian = np.mean(y_upper - y_lower)
+    length[1] = np.mean(y_upper - y_lower)
     
     
     
@@ -165,10 +168,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_gumbel = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[2] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_gumbel = np.mean(y_upper - y_lower)
+    length[2] = np.mean(y_upper - y_lower)
     
     
     
@@ -186,29 +189,29 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_positive = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[3] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_positive = np.mean(y_upper - y_lower)
+    length[3] = np.mean(y_upper - y_lower)
     
     
     
-   ############### mean noise
+   ############### contractive noise
     
    
     
     cqr_conf_method = CQR_rf(quantile_estimator)
-    cqr_conf_method.calibrate(x_calib, y_calib_noisy_mean, alpha)
+    cqr_conf_method.calibrate(x_calib, y_calib_noisy_contractive, alpha)
     predictions = cqr_conf_method.predict(x_test)
     
     y_lower = predictions[:,0]
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_mean = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[4] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_mean = np.mean(y_upper - y_lower)
+    length[4] = np.mean(y_upper - y_lower)
     
     
     
@@ -224,10 +227,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_dispersive = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[5] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_dispersive = np.mean(y_upper - y_lower)
+    length[5] = np.mean(y_upper - y_lower)
     
     
     
@@ -253,10 +256,10 @@ def experiment(seed, sigma):
     y_upper = cqr_conf_predictions[:,1]
 
     # compute and display the average coverage
-    coverage_W2R = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[6] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_W2R = np.mean(y_upper - y_lower)
+    length[6] = np.mean(y_upper - y_lower)
     
 
 
@@ -270,10 +273,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[7] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf = np.mean(y_upper - y_lower)  
+    length[7] = np.mean(y_upper - y_lower)  
 
 
 
@@ -298,10 +301,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_t_train_noisy = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[8] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_t_train_noisy = np.mean(y_upper - y_lower)
+    length[8] = np.mean(y_upper - y_lower)
 #    
 #    
 #    
@@ -328,10 +331,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_gaussian_train_noisy = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[9] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_gaussian_train_noisy = np.mean(y_upper - y_lower)
+    length[9] = np.mean(y_upper - y_lower)
     
     
     
@@ -355,10 +358,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_gumbel_train_noisy = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[10] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_gumbel_train_noisy = np.mean(y_upper - y_lower)
+    length[10] = np.mean(y_upper - y_lower)
     
     
     
@@ -384,16 +387,16 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_positive_train_noisy_pos = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[11]= np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_positive_train_noisy_pos = np.mean(y_upper - y_lower)
+    length[11] = np.mean(y_upper - y_lower)
     
     
 
 
 
-########################### train noisy center 
+########################### train noisy contractive 
 
     # define the QRF model
     quantile_estimator = helper.QuantileForestRegressorAdapter(model=None,
@@ -401,12 +404,12 @@ def experiment(seed, sigma):
                                                                quantiles=[5, 95],
                                                                params=params_qforest)
     
-    quantile_estimator.fit(x_train, y_train_noisy_mean)   
+    quantile_estimator.fit(x_train, y_train_noisy_contractive)   
     
     
     
     cqr_conf_method = CQR_rf(quantile_estimator)
-    cqr_conf_method.calibrate(x_calib, y_calib_noisy_mean, alpha)
+    cqr_conf_method.calibrate(x_calib, y_calib_noisy_contractive, alpha)
     predictions = cqr_conf_method.predict(x_test)
     
 
@@ -414,10 +417,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_mean_train_noisy_mean = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[12] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_mean_train_noisy_mean = np.mean(y_upper - y_lower)
+    length[12] = np.mean(y_upper - y_lower)
     
     
     ###### clean calibration
@@ -431,10 +434,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_clean_train_noisy_mean = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[13] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_clean_train_noisy_mean = np.mean(y_upper - y_lower)
+    length[13] = np.mean(y_upper - y_lower)
 #    
 #    
   
@@ -460,10 +463,10 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_dispersive_train_noisy_dispersive = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[14] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_dispersive_train_noisy_dispersive = np.mean(y_upper - y_lower)
+    length[14] = np.mean(y_upper - y_lower)
     
     
     ###### clean calibration
@@ -477,33 +480,17 @@ def experiment(seed, sigma):
     y_upper = predictions[:,1]
 
     # compute and display the average coverage
-    coverage_clean_train_noisy_dispersive = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
+    coverage[15] = np.sum((y_test >= y_lower) & (y_test <= y_upper)) / len(y_test) * 100
     
     # compute length of the conformal interval per each test point
-    length_cqr_rf_clean_train_noisy_dispersive = np.mean(y_upper - y_lower)             
+    length[15] = np.mean(y_upper - y_lower)             
              
+    data_array = np.concatenate((coverage, length, Noise_type_train, Noise_type_calib, sigma, seed), axis=1)
+    column_values = ['coverage', 'length', 'Noise type train', 'Noise type calib', 'sigma', 'seed']
              
+    results = pd.DataFrame(data = data_array,  
+                  columns = column_values)         
              
-             
-             
-    res = [seed, sigma, coverage, length_cqr_rf, coverage_t, length_cqr_rf_t, coverage_t_train_noisy, length_cqr_rf_t_train_noisy,
-          coverage_gaussian, length_cqr_rf_gaussian, coverage_gaussian_train_noisy, length_cqr_rf_gaussian_train_noisy,
-          coverage_gumbel, length_cqr_rf_gumbel, coverage_gumbel_train_noisy, length_cqr_rf_gumbel_train_noisy,
-          coverage_mean, length_cqr_rf_mean, coverage_mean_train_noisy_mean, length_cqr_rf_mean_train_noisy_mean, coverage_clean_train_noisy_mean, length_cqr_rf_clean_train_noisy_mean,
-          coverage_dispersive, length_cqr_rf_dispersive, coverage_dispersive_train_noisy_dispersive, length_cqr_rf_dispersive_train_noisy_dispersive, coverage_clean_train_noisy_dispersive, length_cqr_rf_clean_train_noisy_dispersive,
-          coverage_positive, length_cqr_rf_positive, coverage_W2R, length_cqr_rf_W2R,
-          coverage_positive_train_noisy_pos, length_cqr_rf_positive_train_noisy_pos]
-    col = ['seed', 'sigma', 'coverage', 'length',  'coverage t noise', 'length t', 'coverage t noise, noisy train', 'length t, noisy train',
-          'coverage gaussian noise', 'length gaussian', 'coverage gaussian noise, noisy train', 'length gaussian, noisy train',
-          'coverage gumbel noise', 'length gumbel', 'coverage gumbel noise, noisy train', 'length gumbel, noisy train',
-          'coverage average noise', 'length average', 'coverage average noise, average noisy train', 'length average, average noisy train', 'coverage clean, average noisy train', 'length clean, average noisy train',
-          'coverage dispersive noise', 'length dispersive', 'coverage dispersive noise, dispersive noisy train', 'length dispersive, dispersive noisy train', 'coverage clean, dispersive noisy train', 'length clean, dispersive noisy train',
-          'coverage positive noise', 'length positive', 'coverage W2R noise', 'length W2R',
-          'coverage positive noise, positive noisy train', 'length positive, positive noisy train']
-             
-             
-    results = pd.DataFrame([res], columns=col)
-    
     return results
     
   

@@ -44,10 +44,6 @@ def experiment(seed):
     img_path = './data/images'
     train_clean_csv_file = './data/train_labels_avg.csv'
     train_noisy_csv_file = './data/train_labels_noisy.csv'
-    val_clean_csv_file = './data/val_labels_avg.csv'
-    val_noisy_csv_file = './data/val_labels_noisy.csv'
-    test_clean_csv_file = './data/test_labels_avg.csv'
-    #test_noisy_csv_file = './data/test_labels_noisy.csv'
     test_val_clean_csv_file = './data/test_val_labels_avg.csv'
     test_val_noisy_csv_file = './data/test_val_labels_noisy.csv'
 
@@ -67,19 +63,14 @@ def experiment(seed):
     
     
     # misc
-    ckpt_path = './ckpts'
-    warm_start = False
     warm_start_epoch = 0
     early_stopping_patience = 10
     save_fig = False
     files_dir = './saved_models_AVA_noisy' 
     if not os.path.exists(files_dir):
         os.mkdir(files_dir)
-    #out_prefix =  'conv_base_lr_%a' %conv_base_lr
-    #file_final_mean = files_dir+'/'+'saved_model_mean_' + out_prefix
-    file_final_mean = files_dir+'/'+'saved_model_mean_final_tmp'
-    #file_final_qr = files_dir+'/'+'saved_model_qr_' + out_prefix
-    file_final_qr = files_dir+'/'+'saved_model_qr_final_tmp'
+    file_final_mean = files_dir+'/'+'saved_model_mean_final'
+    file_final_qr = files_dir+'/'+'saved_model_qr_final'
     
     num_classes_mean = 1
     num_classes_qr = 2
@@ -87,7 +78,6 @@ def experiment(seed):
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #writer = SummaryWriter()
 
     train_transform = transforms.Compose([
         transforms.Resize(256),
@@ -111,18 +101,12 @@ def experiment(seed):
     base_model_qr = models.vgg16(pretrained=True)
     bbox_model_qr = NIMA(base_model_qr, num_classes=num_classes_qr, dropout=0.2)
 
-#    if warm_start:
-#        bbox_model.load_state_dict(torch.load(os.path.join(ckpt_path, 'epoch-%d.pth' % warm_start_epoch)))
-#        print('Successfully loaded model epoch-%d.pth' % warm_start_epoch)
 
 
 
     trainset_clean = AVADataset(csv_file=train_clean_csv_file, root_dir=img_path, transform=train_transform)
     trainset_noisy = AVADataset(csv_file=train_noisy_csv_file, root_dir=img_path, transform=train_transform)
-    
-#    valset_clean = AVADataset(csv_file=val_clean_csv_file, root_dir=img_path, transform=val_transform)
-#    valset_noisy = AVADataset(csv_file=val_noisy_csv_file, root_dir=img_path, transform=val_transform)
-    
+       
     val_test_set_clean = AVADataset(csv_file=test_val_clean_csv_file, root_dir=img_path, transform=val_transform)
     val_test_set_noisy = AVADataset(csv_file=test_val_noisy_csv_file, root_dir=img_path, transform=val_transform)
 
@@ -131,11 +115,6 @@ def experiment(seed):
     train_loader_noisy = torch.utils.data.DataLoader(trainset_noisy, batch_size=train_batch_size,
         shuffle=True, num_workers=num_workers)
         
-#    val_loader_clean = torch.utils.data.DataLoader(valset_clean, batch_size=val_batch_size,
-#        shuffle=False, num_workers=num_workers)
-#    val_loader_noisy = torch.utils.data.DataLoader(valset_noisy, batch_size=val_batch_size,
-#        shuffle=False, num_workers=num_workers)
-
 
     if os.path.isfile(file_final_mean):
         print('Loading model instead of training')
@@ -158,13 +137,6 @@ def experiment(seed):
         train_bbox(bbox_model_qr, train_loader_noisy, warm_start_epoch, epochs, 1e-3, lr_decay_rate, 1e-3, lr_decay_freq, file_final_qr, num_classes_qr, train_batch_size, optimizer=optimizer, decay=decay, MSE=False,
         lr_milestones=20)    
 
-
-
-#    testset_clean = AVADataset(csv_file=test_clean_csv_file, root_dir=img_path, transform=val_transform)
-#    test_loader_clean = torch.utils.data.DataLoader(testset_clean, batch_size=test_batch_size, shuffle=False, num_workers=num_workers)
-    
-    #testset_noisy = AVADataset(csv_file=test_noisy_csv_file, root_dir=img_path, transform=val_transform)
-    #test_loader_noisy = torch.utils.data.DataLoader(testset_noisy, batch_size=test_batch_size, shuffle=False, num_workers=num_workers)
     
     num_iter = 1
     
@@ -178,6 +150,11 @@ def experiment(seed):
     cqr_coverage_val_clean_tmp = np.zeros(num_iter,)
     cqr_length_val_clean_tmp = np.zeros(num_iter,)
     
+    method = np.expand_dims(['Residual scores', 'Residual scores', 'CQR', 'CQR'],1)
+    calib_set = np.expand_dims(['noisy', 'clean', 'noisy', 'clean'],1)
+    coverage = np.zeros((len(method),1))
+    length = np.zeros((len(method),1))
+    
     for i in range(num_iter):
     
         random_indices = np.arange(len(val_test_set_clean))
@@ -185,10 +162,6 @@ def experiment(seed):
         split_ind = int(np.floor(0.5 * len(val_test_set_clean)))
         random_indices_val = random_indices[:split_ind]
         random_indices_test = random_indices[split_ind:]
-        
-        
-        #test_sampler = torch.utils.data.SubsetRandomSampler(random_indices_test)
-        #val_sampler = torch.utils.data.SubsetRandomSampler(random_indices_val)
         
         valset_clean = torch.utils.data.Subset(val_test_set_clean, random_indices_val)
         valset_noisy = torch.utils.data.Subset(val_test_set_noisy, random_indices_val)
@@ -201,13 +174,7 @@ def experiment(seed):
         shuffle=False, num_workers=num_workers)
         test_loader_clean = torch.utils.data.DataLoader(testset_clean, batch_size=test_batch_size, shuffle=False, num_workers=num_workers)
         
-        
-        #for data in test_loader_clean:
-        #  print(data['annotations'])
-        #print(len(valset_noisy))
-        #print(len(testset_clean))
-    
-    
+            
         res_conf_method = ResCalib(bbox_model_mean)
         res_conf_method.calibrate(val_loader_noisy, alpha)
         res_conf_predictions = res_conf_method.predict(test_loader_clean)
@@ -263,23 +230,22 @@ def experiment(seed):
         # compute length of the conformal interval per each test point
         cqr_length_val_clean_tmp[i] = np.mean(cqr_y_upper_val_clean - cqr_y_lower_val_clean)
     
-    coverage = np.mean(coverage_tmp)
-    length = np.mean(length_tmp)
+    coverage[0] = np.mean(coverage_tmp)
+    length[0] = np.mean(length_tmp)
     MSE = np.mean(MSE_tmp)
-    coverage_val_clean = np.mean(coverage_val_clean_tmp)
-    length_val_clean = np.mean(length_val_clean_tmp)
-    cqr_coverage = np.mean(cqr_coverage_tmp)
-    cqr_length = np.mean(cqr_length_tmp)
-    cqr_coverage_val_clean = np.mean(cqr_coverage_val_clean_tmp)
-    cqr_length_val_clean = np.mean(cqr_length_val_clean_tmp)
+    coverage[1] = np.mean(coverage_val_clean_tmp)
+    length[1] = np.mean(length_val_clean_tmp)
+    coverage[2] = np.mean(cqr_coverage_tmp)
+    length[2] = np.mean(cqr_length_tmp)
+    coverage[3] = np.mean(cqr_coverage_val_clean_tmp)
+    length[3] = np.mean(cqr_length_val_clean_tmp)
     
-    
-    res = [seed, coverage, length, MSE, coverage_val_clean, length_val_clean, cqr_coverage, cqr_length, cqr_coverage_val_clean, cqr_length_val_clean]
-    col = ['seed', 'coverage', 'length', 'MSE', 'coverage calib clean', 'length calib clean', 'coverage cqr', 'length cqr', 'coverage cqr calib clean', 'length cqr calib clean']
-    #res = [seed, coverage_noisy_test, length, MSE]
-    #col = ['seed', 'coverage noisy test', 'length', 'MSE']
+    data_array = np.concatenate((coverage, length, method, calib_set), axis=1)
+    column_values = ['Coverage', 'Length', 'Method', 'Calib set']
              
-    results = pd.DataFrame([res], columns=col)
+    results = pd.DataFrame(data = data_array,  
+                  columns = column_values)  
+                  
     
     return results
     
@@ -289,9 +255,9 @@ if __name__ == '__main__':
 
   # Parameters
   seed = int(sys.argv[1])
-  #conv_base_lr = float(sys.argv[2])
+
   # Output directory and filename
-  out_dir = "./results_AVA_noisy"
+  out_dir = "./results_AVA_noisy_final"
   out_file = out_dir + "_seed_" + str(seed) + ".csv"
 
   # Run experiment
