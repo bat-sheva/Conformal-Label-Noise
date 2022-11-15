@@ -81,12 +81,10 @@ def predict_proba(model, test_loader, return_y_true = False):
 
 
 
-def eval_predictions(data_loader, box, data="unknown", plot=False,  printing=True, noise_tr=False):
+def eval_predictions(data_loader, box, data="unknown", plot=False,  printing=True):
 
-    if noise_tr:
-      Y_pred, Y = box.predict(data_loader, return_y_true = True)
-    else:
-      Y_pred, Y = predict(box, data_loader, return_y_true = True)
+
+    Y_pred, Y = predict(box, data_loader, return_y_true = True)
     
     if plot:
         A = confusion_matrix(Y, Y_pred)

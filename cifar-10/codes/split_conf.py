@@ -76,17 +76,14 @@ class SplitConformal:
       self.bbox = bbox
 
 
-  def calibrate(self, calib_loader, alpha, bbox=None, return_scores=False, no_calib=False, scores='RAPS', noise_tr=False):
+  def calibrate(self, calib_loader, alpha, bbox=None, return_scores=False, no_calib=False, scores='RAPS'):
     if bbox is not None:
         self.bbox = bbox
-    self.noise_tr = noise_tr
 
     # Form prediction sets on calibration data
 
-    if noise_tr:
-      p_hat_calib, Y = self.bbox.predict_proba(calib_loader, return_y_true = True)
-    else:
-      p_hat_calib, Y = predict_proba(self.bbox, calib_loader, return_y_true = True)
+
+    p_hat_calib, Y = predict_proba(self.bbox, calib_loader, return_y_true = True)
     
     grey_box = ProbAccum(p_hat_calib)
 
@@ -111,10 +108,7 @@ class SplitConformal:
     n = len(data_loader.dataset)
     if epsilon is None:
       epsilon = np.random.uniform(low=0.0, high=1.0, size=n)
-    if self.noise_tr:
-      p_hat = self.bbox.predict_proba(data_loader)
-    else:
-      p_hat = predict_proba(self.bbox, data_loader)
+    p_hat = predict_proba(self.bbox, data_loader)
     grey_box = ProbAccum(p_hat)
     if alpha is None:
       alpha = self.alpha_calibrated
@@ -123,7 +117,7 @@ class SplitConformal:
 
         
 
-def evaluate_predictions(S, y, noisy=False, clean=False):
+def evaluate_predictions(S, y):
   # Marginal coverage
   marg_coverage = np.mean([y[i] in S[i] for i in range(len(y))])
     

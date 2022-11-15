@@ -101,6 +101,7 @@ def experiment(seed, sigma):
     
     Noise_type_train = np.expand_dims(['clean', 'clean', 'clean', 'clean', 'clean', 'clean', 'clean', 'clean', 't', 'gaussian', 'gumbel', 'positive', 'contractive', 'contractive', 'dispersive', 'dispersive'],1)
     Noise_type_calib = np.expand_dims(['t', 'gaussian', 'gumbel', 'positive', 'contractive', 'dispersive', 'wrong_to_right', 'clean', 't', 'gaussian', 'gumbel', 'positive', 'contractive', 'clean', 'dispersive', 'clean'],1)
+    calib = np.expand_dims(['noisy', 'noisy', 'noisy', 'noisy', 'noisy', 'noisy', 'noisy', 'clean', 'noisy', 'noisy', 'noisy', 'noisy', 'noisy', 'clean', 'noisy', 'clean'],1)
     coverage = np.zeros((len(Noise_type_train),1))
     seed = np.ones((len(Noise_type_train),1))*seed
     sigma = np.ones((len(Noise_type_train),1))*sigma
@@ -485,8 +486,8 @@ def experiment(seed, sigma):
     # compute length of the conformal interval per each test point
     length[15] = np.mean(y_upper - y_lower)             
              
-    data_array = np.concatenate((coverage, length, Noise_type_train, Noise_type_calib, sigma, seed), axis=1)
-    column_values = ['coverage', 'length', 'Noise type train', 'Noise type calib', 'sigma', 'seed']
+    data_array = np.concatenate((coverage, length, Noise_type_train, Noise_type_calib, calib, sigma, seed), axis=1)
+    column_values = ['coverage', 'length', 'Noise type train', 'Noise type calib', 'calib', 'sigma', 'seed']
              
     results = pd.DataFrame(data = data_array,  
                   columns = column_values)         
