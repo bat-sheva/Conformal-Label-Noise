@@ -10,10 +10,10 @@ We study the robustness of conformal prediction—a powerful tool for uncertaint
 
 
 ### Contents
-•	`AVA/` : \Code for reproducing results of experiments with AVA dataset.
-•	`cifar-10/` : \Code for reproducing results of experiments with CIFAR-10H dataset.
-•	`synthetic_classification/` : \Code for reproducing results of synthetic classification experiment.
-•	`synthetic_regression/` : \Code for reproducing results of synthetic regression experiment.
+•	`AVA/` : \Code for reproducing results of experiments with AVA dataset.\n
+•	`cifar-10/` : \Code for reproducing results of experiments with CIFAR-10H dataset.\n
+•	`synthetic_classification/` : \Code for reproducing results of synthetic classification experiment.\n
+•	`synthetic_regression/` : \Code for reproducing results of synthetic regression experiment.\n
 Run 'main' file in order to run all experiments in parallel on a computing cluster and reproduce results from the paper. 'Run_all' and 'submit' files run the main file with different seeds or varying parameters on the clusters. 'Show_results' notebook visualizes the results achieved in these experiments and create the figures presented in the paper.
 
 ### Prerequisites
