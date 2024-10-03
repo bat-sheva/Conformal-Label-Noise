@@ -1,0 +1,9 @@
+zipped/
+all_data/
+data/
+results/
+outputs/
+.cache/
+models
+/models
+models/

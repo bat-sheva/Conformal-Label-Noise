@@ -1,0 +1,9 @@
+data/
+.cache/
+models/
+
+__pycache__
+/__pycache__
+__pycache__/
+*.csv
+*.tar.gz
