@@ -1,11 +1,13 @@
-## Conformal Prediction is Robust to Label Noise
+## Label Noise Robustness of Conformal Prediction
 
-This repository contains code accompanying the following paper: "Conformal Prediction is Robust to Label Noise".
+This repository contains code accompanying the following paper: "Label Noise Robustness of Conformal Prediction".
 The contents of this repository include a Python package implementing the experiments with synthetic and real data presented in the paper.
 
 ### Abstract
 
-We study the robustness of conformal prediction—a powerful tool for uncertainty quantification—to label noise. Our analysis tackles both regression and classification problems, characterizing when and how it is possible to construct uncertainty sets that correctly cover the unobserved noiseless ground truth labels. Through stylized theoretical examples and practical experiments, we argue that na¨ıve conformal prediction covers the noiseless ground truth label unless the noise distribution is adversarially designed. This leads us to believe that correcting for label noise is unnecessary except for pathological data distributions or noise sources. In such cases, we can also correct for noise of bounded size in the conformal prediction algorithm in order to ensure correct coverage of the ground truth labels without score or data regularity.
+We study the robustness of conformal prediction, a powerful tool for uncertainty quantification, to label noise. Our analysis tackles both regression and classification problems, characterizing when and how it is possible to construct uncertainty sets that correctly cover the unobserved noiseless ground truth labels. We further extend our theory and formulate the requirements for correctly controlling a general loss function, such as the false negative proportion, with noisy labels. 
+Our theory and experiments suggest that conformal prediction and risk-controlling techniques with noisy labels attain conservative risk over the clean ground truth labels whenever the noise is dispersive and increases variability.
+In such cases, we can also correct for noise of bounded size in the conformal prediction algorithm in order to ensure achieving the correct risk of the ground truth labels without score or data regularity. 
 
 
 
